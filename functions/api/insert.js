@@ -1,5 +1,10 @@
-export async function onRequestPost(context) {
+export async function onRequest(context) {
   const { request, env } = context;
+  
+  // POSTメソッド以外は拒否
+  if (request.method !== "POST") {
+    return new Response("Method Not Allowed", { status: 405 });
+  }
   
   // 簡易認証: API_SECRET_KEY ヘッダーをチェック
   const authHeader = request.headers.get("X-API-SECRET-KEY");
