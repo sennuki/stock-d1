@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Dashboard - AAPL</title>
+    <style>
+        body { font-family: sans-serif; margin: 2rem; background: #f4f4f9; }
+        h1 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; background: white; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background: #007bff; color: white; }
+        tr:nth-child(even) { background: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>AAPL 株価データ (直近30日)</h1>
+    <div id="loading">データを読み込み中...</div>
+    <table id="stock-table" style="display:none;">
+        <thead>
+            <tr>
+                <th>日付</th>
+                <th>始値</th>
+                <th>高値</th>
+                <th>安値</th>
+                <th>終値</th>
+                <th>出来高</th>
+            </tr>
+        </thead>
+        <tbody id="stock-body"></tbody>
+    </table>
+
+    <script>
+        async function fetchStocks() {
+            try {
+                const response = await fetch('/api/stock');
+                const data = await response.json();
+                
+                const loading = document.getElementById('loading');
+                const table = document.getElementById('stock-table');
+                const tbody = document.getElementById('stock-body');
+
+                if (data.length === 0) {
+                    loading.textContent = 'データがありません。GitHub Actionsを実行してください。';
+                    return;
+                }
+
+                data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${row.date}</td>
+                        <td>${row.open.toFixed(2)}</td>
+                        <td>${row.high.toFixed(2)}</td>
+                        <td>${row.low.toFixed(2)}</td>
+                        <td>${row.close.toFixed(2)}</td>
+                        <td>${row.volume.toLocaleString()}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                loading.style.display = 'none';
+                table.style.display = 'table';
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loading').textContent = 'エラーが発生しました。';
+            }
+        }
+        fetchStocks();
+    </script>
+</body>
+</html>

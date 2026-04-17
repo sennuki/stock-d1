@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# Node / Cloudflare
+node_modules/
+.wrangler/
+dist/
+.dev.vars
+
+# OS
+.DS_Store
+Thumbs.db
