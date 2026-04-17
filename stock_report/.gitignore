@@ -1,0 +1,24 @@
+venv/
+__pycache__/
+*.pyc
+node_modules/
+dist/
+.astro/
+.DS_Store
+*.log
+# 生成されたレポート（HTMLファイル）を除外
+*.html
+*US_LIST.csv
+*US_LIST.js
+*US_LIST.html
+*US_LIST.txt
+**/output_reports_full/
+**/test_reports/
+.venv/
+stock-blog/public/output_reports_full/
+stock-blog/src/data/blog/
+stock-blog/src/data/stocks.json
+stock-blog/public/reports/*.json
+public/reports/
+code/data/
+.env

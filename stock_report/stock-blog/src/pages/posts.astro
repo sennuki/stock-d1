@@ -1,0 +1,27 @@
+---
+import { getCollection } from "astro:content";
+import Layout from "@/layouts/Layout.astro";
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
+import Main from "@/layouts/Main.astro";
+import Card from "@/components/Card.astro";
+import getSortedPosts from "@/utils/getSortedPosts";
+import { SITE } from "@/config";
+
+const posts = await getCollection("blog", ({ data }) => !data.draft);
+const sortedPosts = getSortedPosts(posts);
+---
+
+<Layout title={`記事一覧 | ${SITE.title}`}>
+  <Header />
+  <Main pageTitle="記事一覧" pageDesc="米国株投資に役立つ分析コラムや活用ガイド。">
+    <ul>
+      {
+        sortedPosts.map(post => (
+          <Card variant="h2" {...post} />
+        ))
+      }
+    </ul>
+
+  <Footer />
+</Layout>

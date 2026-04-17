@@ -1,0 +1,111 @@
+name: Generate and Deploy Stock Reports
+
+on:
+  schedule:
+    - cron: '0 21 * * 1-5' # 平日毎日実行
+  push:
+    branches: [ master, feature/cloudflare-d1-migration ] # コードが更新された時も実行
+  workflow_dispatch: # 手動実行用
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      deployments: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update || true
+          sudo apt-get install -y libcurl4
+
+      - name: Install Python dependencies
+        run: uv pip install --system -r requirements.txt
+
+      - name: Restore yfinance cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/py-yfinance
+          key: ${{ runner.os }}-yfinance-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-yfinance-
+
+      - name: Restore stock reports cache
+        uses: actions/cache@v4
+        with:
+          path: stock-blog/public/reports
+          key: ${{ runner.os }}-stock-reports-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-stock-reports-
+
+      - name: Create output directories
+        run: |
+          mkdir -p stock-blog/public/reports
+          mkdir -p stock-blog/public/output_reports_full
+          mkdir -p stock-blog/src/data/blog
+          # If stocks.json doesn't exist, create an empty array
+          [ -f stock-blog/src/data/stocks.json ] || echo "[]" > stock-blog/src/data/stocks.json
+
+      - name: Run Python report generator
+        run: PYTHONPATH=code python code/main.py
+        env:
+          TEST_MODE: false
+          PYTHON_MAX_WORKERS: 1
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: 7fa1f489-75e7-4f31-b42e-d87da80d429d
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -f stock-blog/src/data/stocks.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "data: update stock list [skip ci]" && git push origin HEAD)
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: stock-blog/pnpm-lock.yaml
+
+      - name: Install Node dependencies
+        run: |
+          cd stock-blog
+          pnpm install --frozen-lockfile
+
+      - name: Build Astro site
+        run: |
+          cd stock-blog
+          pnpm run build
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist/client --project-name=stock-blog
+          workingDirectory: stock-blog
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
