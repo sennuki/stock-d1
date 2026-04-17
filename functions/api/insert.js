@@ -3,8 +3,11 @@ export async function onRequestPost(context) {
   
   // 簡易認証: API_SECRET_KEY ヘッダーをチェック
   const authHeader = request.headers.get("X-API-SECRET-KEY");
+  if (!env.API_SECRET_KEY) {
+    return new Response("Cloudflare: API_SECRET_KEY is not defined in environment variables", { status: 401 });
+  }
   if (authHeader !== env.API_SECRET_KEY) {
-    return new Response("Unauthorized", { status: 401 });
+    return new Response("Unauthorized: Key mismatch", { status: 401 });
   }
 
   try {
