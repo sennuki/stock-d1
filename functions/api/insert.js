@@ -3,7 +3,7 @@ export async function onRequest(context) {
   
   // POSTメソッド以外は拒否
   if (request.method !== "POST") {
-    return new Response("Method Not Allowed", { status: 405 });
+    return new Response(`Method Not Allowed: Received ${request.method}`, { status: 405 });
   }
   
   // 簡易認証: API_SECRET_KEY ヘッダーをチェック
