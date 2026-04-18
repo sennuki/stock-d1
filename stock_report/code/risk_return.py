@@ -60,11 +60,16 @@ def process_single_stock(symbol):
         
         results = {'Symbol': symbol}
 
-        # 前日比
+        # 前日比と現在値
         if len(hist) >= 2:
             results['Daily_Change'] = float((hist['Close'][-1] - hist['Close'][-2]) / hist['Close'][-2])
+            results['Current_Price'] = float(hist['Close'][-1])
+        elif len(hist) == 1:
+            results['Daily_Change'] = 0.0
+            results['Current_Price'] = float(hist['Close'][-1])
         else:
             results['Daily_Change'] = 0.0
+            results['Current_Price'] = None
 
         # 最新の日付を取得
         last_date = hist['Date'][-1]
