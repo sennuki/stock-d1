@@ -18,42 +18,17 @@ import json
 import plotly.io as pio
 import polars as pl
 from d1_uploader import D1Uploader
-from d1_movement_reasons_uploader import sync_movement_reasons_to_d1
 
-def sync_to_d1(df_info, df_metrics=None):
-    """S&P 500の銘柄リストと指標をCloudflare D1に同期する"""
+def sync_to_d1(df):
+    """S&P 500の銘柄リストをCloudflare D1に同期する"""
     print("Cloudflare D1への同期を開始します...")
     uploader = D1Uploader()
-    
-    # 指標データがある場合はマージする
-    if df_metrics is not None and not df_metrics.is_empty():
-        df_sync = df_info.join(
-            df_metrics.select(["Symbol", "Daily_Change", "Current_Price"]), 
-            left_on="Symbol_YF", right_on="Symbol", how="left"
-        )
-    else:
-        df_sync = df_info.with_columns([
-            pl.lit(None).alias("Daily_Change"),
-            pl.lit(None).alias("Current_Price")
-        ])
-
-    for row in df_sync.to_dicts():
+    for row in df.to_dicts():
         symbol = row.get("Symbol_YF")
         name_ja = row.get("Security_JA") or row.get("Security")
         sector = row.get("GICS Sector")
         industry = row.get("GICS Sub-Industry")
-        daily_change = row.get("Daily_Change")
-        current_price = row.get("Current_Price")
-        
-        # 決算フラグ (ダミーまたはロジックがあれば追加)
-        is_recent_actual = row.get("Has_Movement_Reason", False) # 暫定的に理由があるものをフラグ立て
-
-        uploader.upsert_stock(
-            symbol, name_ja, sector, industry, 
-            daily_change=daily_change, 
-            current_price=current_price,
-            is_recent_actual=is_recent_actual
-        )
+        uploader.upsert_stock(symbol, name_ja, sector, industry)
     print("D1への同期が完了しました。")
 
 # Plotly 6.0.0+ template migration:
@@ -185,7 +160,7 @@ if __name__ == "__main__":
             df_sp500 = pl.concat([df_sp500, df_missing])
         # JSONリストのエクスポート (互換性のため維持)
         export_stocks_json(df_sp500)
-        # D1への同期 (初期)
+        # D1への同期
         sync_to_d1(df_sp500)
 
         # 2. リスク指標計算 (全銘柄)
@@ -228,12 +203,6 @@ if __name__ == "__main__":
                     how="left"
                 ).with_columns(pl.col("Has_Movement_Reason").fill_null(False))
             # --- 理由生成終了 ---
-            
-            # 指標計算後のD1同期 (現在値・騰落率を含む)
-            sync_to_d1(df_sp500, df_metrics)
-            
-            # 騰落銘柄の変動理由をD1に同期 (ブログ的コンテンツの保存)
-            sync_movement_reasons_to_d1(df_metrics)
 
         except Exception as e:
             utils.log_event("ERROR", "SYSTEM", f"Failed to calculate risk metrics or reasons: {e}")

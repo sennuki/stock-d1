@@ -5,9 +5,6 @@ CREATE TABLE IF NOT EXISTS stocks (
     sector TEXT,
     industry TEXT,
     market_cap REAL,
-    daily_change REAL,
-    current_price REAL,
-    is_recent_actual INTEGER DEFAULT 0,
     last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

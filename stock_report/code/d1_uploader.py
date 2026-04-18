@@ -40,22 +40,19 @@ class D1Uploader:
                 print(f"Response: {e.response.text}")
             return None
 
-    def upsert_stock(self, symbol, name_ja=None, sector=None, industry=None, market_cap=None, daily_change=None, current_price=None, is_recent_actual=False):
+    def upsert_stock(self, symbol, name_ja=None, sector=None, industry=None, market_cap=None):
         """銘柄情報を更新または挿入する"""
         sql = """
-        INSERT INTO stocks (symbol, name_ja, sector, industry, market_cap, daily_change, current_price, is_recent_actual, last_updated)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO stocks (symbol, name_ja, sector, industry, market_cap, last_updated)
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(symbol) DO UPDATE SET
             name_ja=COALESCE(excluded.name_ja, stocks.name_ja),
             sector=COALESCE(excluded.sector, stocks.sector),
             industry=COALESCE(excluded.industry, stocks.industry),
             market_cap=COALESCE(excluded.market_cap, stocks.market_cap),
-            daily_change=COALESCE(excluded.daily_change, stocks.daily_change),
-            current_price=COALESCE(excluded.current_price, stocks.current_price),
-            is_recent_actual=COALESCE(excluded.is_recent_actual, stocks.is_recent_actual),
             last_updated=CURRENT_TIMESTAMP
         """
-        return self.execute_query(sql, [symbol, name_ja, sector, industry, market_cap, daily_change, current_price, 1 if is_recent_actual else 0])
+        return self.execute_query(sql, [symbol, name_ja, sector, industry, market_cap])
 
     def upsert_fundamentals(self, data_list):
         """財務データを一括更新または挿入する"""
@@ -77,15 +74,3 @@ class D1Uploader:
         """株価データ(pandas/polars)を挿入する"""
         # ここでは数件ずつバッチ処理することを推奨
         pass
-
-    def upsert_analysis_report(self, symbol, content_markdown, model_name=None):
-        """分析レポート（変動理由など）を更新または挿入する"""
-        sql = """
-        INSERT INTO analysis_reports (symbol, content_markdown, model_name, generated_at)
-        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(symbol) DO UPDATE SET
-            content_markdown=excluded.content_markdown,
-            model_name=COALESCE(excluded.model_name, analysis_reports.model_name),
-            generated_at=CURRENT_TIMESTAMP
-        """
-        return self.execute_query(sql, [symbol, content_markdown, model_name])
