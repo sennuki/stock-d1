@@ -472,10 +472,10 @@ def get_market_info(symbol):
         if prev_close and curr_price:
             daily_change = (curr_price - prev_close) / prev_close
             
-        return symbol, m_map.get(ex, ex), daily_change
+        return symbol, m_map.get(ex, ex), daily_change, curr_price
     except Exception as e:
         # print(f"Error fetching info for {symbol}: {e}") # Debug output
-        return symbol, "NYSE", None
+        return symbol, "NYSE", None, None
 
 def fetch_sp500_companies_optimized():
     print("S&P 500リストを取得中...")
@@ -503,6 +503,7 @@ def fetch_sp500_companies_optimized():
         symbols = df['Symbol_YF'].to_list()
         ex_map = {}
         change_map = {}
+        price_map = {}
         ja_name_map = {}
         
         print(f"{len(symbols)} 銘柄の市場情報を取得中... (並列処理)")
@@ -514,9 +515,10 @@ def fetch_sp500_companies_optimized():
         with ThreadPoolExecutor(max_workers=current_max_workers) as ex:
             f_map = {ex.submit(get_market_info, s): s for s in symbols}
             for f in tqdm(as_completed(f_map), total=len(symbols)):
-                s, e, c = f.result()
+                s, e, c, p = f.result()
                 ex_map[s] = e
                 change_map[s] = c
+                price_map[s] = p
                 
                 # 日本語名の紐付け (Yahoo Finance 用シンボル A -> A, BRK-B -> BRK.B など考慮)
                 display_symbol = s.replace("-", ".")
@@ -529,6 +531,7 @@ def fetch_sp500_companies_optimized():
         return df.with_columns([
             pl.col('Symbol_YF').map_elements(lambda s: ex_map.get(s, "NYSE"), return_dtype=pl.Utf8).alias('Exchange'),
             pl.col('Symbol_YF').map_elements(lambda s: change_map.get(s), return_dtype=pl.Float64).alias('Daily_Change'),
+            pl.col('Symbol_YF').map_elements(lambda s: price_map.get(s), return_dtype=pl.Float64).alias('Current_Price'),
             pl.col('Symbol_YF').map_elements(lambda s: ja_name_map.get(s), return_dtype=pl.Utf8).alias('Security_JA')
         ])
     except Exception as e:

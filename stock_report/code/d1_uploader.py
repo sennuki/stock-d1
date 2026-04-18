@@ -70,7 +70,16 @@ class D1Uploader:
             results.append(res)
         return results
 
-    def upsert_prices(self, symbol, df_prices):
-        """株価データ(pandas/polars)を挿入する"""
-        # ここでは数件ずつバッチ処理することを推奨
-        pass
+    def upsert_prices(self, symbol, data_list):
+        """株価データを一括更新または挿入する"""
+        results = []
+        for d in data_list:
+            sql = """
+            INSERT INTO prices (symbol, date, close)
+            VALUES (?, ?, ?)
+            ON CONFLICT(symbol, date) DO UPDATE SET
+                close=excluded.close
+            """
+            res = self.execute_query(sql, [symbol, d['date'], d['close']])
+            results.append(res)
+        return results
