@@ -1,0 +1,38 @@
+name: Sync S&P 500 Prices to D1
+
+on:
+  schedule:
+    - cron: '0 21 * * 1-5' # 月〜金の毎日 21:00 UTC (日本時間 6:00 AM)
+  workflow_dispatch: # 手動実行用
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          version: "0.11.7"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "stock_report/code/.python-version"
+
+      - name: Install dependencies
+        run: |
+          cd stock_report/code
+          uv sync
+
+      - name: Run D1 Prices Uploader
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_DATABASE_ID: ${{ secrets.CLOUDFLARE_DATABASE_ID }}
+        run: |
+          cd stock_report/code
+          uv run d1_prices_uploader.py
